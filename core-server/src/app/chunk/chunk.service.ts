@@ -49,16 +49,16 @@ export class ChunkService {
 
     const vector = toVectorString(embedding);
 
-    const result: ChunkResult[] = await this.chunkRepository.query(
+    const results: ChunkResult[] = await this.chunkRepository.query(
       `
-    SELECT content, embedding <=> $1 AS distance
-    FROM chunk
-    WHERE embedding IS NOT NULL
-    ORDER BY embedding <=> $1
-    LIMIT $2;
-    `,
+        SELECT content, embedding <=> $1 AS distance
+        FROM chunk
+        WHERE embedding IS NOT NULL
+        ORDER BY embedding <=> $1
+        LIMIT $2
+      `,
       [vector, limit],
     );
-    return result;
+    return results.filter((r) => r.distance < 0.7);
   }
 }

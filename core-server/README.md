@@ -1,98 +1,279 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# RAG System (Retrieval Augmented Generation)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Overview
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This project implements a **domain-specific RAG (Retrieval Augmented Generation) system** using:
 
-## Description
+* NestJS (Backend API)
+* FastAPI (Python AI service)
+* PostgreSQL + pgvector (Vector database)
+* Sentence Transformers (Local embeddings)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+The system enables:
 
-## Project setup
+1. Storing documents
+2. Chunking content
+3. Generating embeddings
+4. Performing semantic search
+5. Retrieving relevant context
 
-```bash
-$ npm install
+---
+
+## Architecture
+
+```
+User Request
+   ↓
+NestJS API
+   ↓
+Chunking Layer
+   ↓
+Python AI Service (Embeddings)
+   ↓
+PostgreSQL (pgvector)
+   ↓
+Similarity Search
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## What We Built Step-by-Step
 
-# watch mode
-$ npm run start:dev
+### 1. Document Ingestion
 
-# production mode
-$ npm run start:prod
+* Developed REST APIs to store documents
+* Stored raw content in PostgreSQL
+
+---
+
+### 2. Chunking (Initial Mistake + Fix)
+
+#### ❌ Initial Approach:
+
+```ts
+text.slice(start, end)
 ```
 
-## Run tests
+**Problems:**
 
-```bash
-# unit tests
-$ npm run test
+* Broke sentences mid-way
+* Produced meaningless chunks
+* Resulted in poor embeddings → weak retrieval
 
-# e2e tests
-$ npm run test:e2e
+#### ✅ Fix:
 
-# test coverage
-$ npm run test:cov
+* Switched to **sentence-based chunking**
+* Preserved semantic meaning
+
+---
+
+### 3. Embeddings
+
+* Built a Python microservice using:
+
+  * `sentence-transformers`
+  * Model: `all-MiniLM-L6-v2`
+* Generated embeddings locally (completely free)
+
+---
+
+### 4. Storing Embeddings
+
+* Used `pgvector` in PostgreSQL
+* Stored embeddings in a `vector` column
+
+---
+
+### 5. Similarity Search (Critical Learning)
+
+#### ❌ Initial Approach (Incorrect):
+
+```sql
+embedding <-> query_embedding
 ```
 
-## Deployment
+This uses **Euclidean distance**
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+**Problems:**
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+* Poor semantic ranking
+* High distance values (~1.0+)
+* Weak similarity signals
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+---
+
+#### ✅ Fixed Approach (Correct):
+
+```sql
+embedding <=> query_embedding
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+This uses **Cosine similarity**
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## Why Cosine Similarity?
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Embeddings represent **direction (semantic meaning)** rather than magnitude.
 
-## Support
+### Euclidean Distance:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+* Measures raw distance
+* Sensitive to vector scale
+* Not suitable for semantic comparison
 
-## Stay in touch
+### Cosine Similarity:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+* Measures angle between vectors
+* Captures semantic similarity
+* Standard approach in NLP systems
 
-## License
+---
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Results Comparison
+
+| Approach          | Distance Range | Quality |
+| ----------------- | -------------- | ------- |
+| Euclidean (`<->`) | ~1.0 – 1.3     | ❌ Poor  |
+| Cosine (`<=>`)    | ~0.2 – 0.4     | ✅ Good  |
+
+---
+
+## 6. Chunk Size Optimization
+
+#### ❌ Initial:
+
+```
+chunk size = 500
+```
+
+**Problems:**
+
+* Too large
+* Low precision
+* Weak matching
+
+#### ✅ Fix:
+
+```
+chunk size = 150
+overlap = 30
+```
+
+**Result:**
+
+* Improved semantic matching
+* Better retrieval accuracy
+
+---
+
+## Final Retrieval Flow
+
+```
+User Query
+   ↓
+Convert to Embedding
+   ↓
+Cosine Similarity Search (pgvector)
+   ↓
+Top-K Relevant Chunks
+```
+
+---
+
+## Example Query
+
+```
+"What is RAG?"
+```
+
+### Output:
+
+```json
+[
+  {
+    "content": "Retrieval Augmented Generation (RAG) is a method...",
+    "distance": 0.32
+  }
+]
+```
+
+---
+
+## Key Learnings
+
+### 1. Retrieval > LLM
+
+```
+RAG = 80% Retrieval + 20% Generation
+```
+
+---
+
+### 2. Chunking Quality is Critical
+
+Bad chunking → bad embeddings → poor retrieval
+
+---
+
+### 3. Distance Metric Matters
+
+Using the wrong metric leads to incorrect results
+
+---
+
+### 4. Data Quality > Model Choice
+
+Better content → stronger embeddings → improved results
+
+---
+
+### 5. ORMs Don’t Handle Everything
+
+* `pgvector` required manual handling
+* Raw SQL queries were necessary
+
+---
+
+## Current Status
+
+```
+✔ Document ingestion
+✔ Chunking (sentence-based)
+✔ Embeddings (local)
+✔ Vector storage (pgvector)
+✔ Similarity search (cosine)
+❌ Answer generation (next step)
+```
+
+---
+
+## Next Steps
+
+* Integrate an LLM for answer generation
+* Improve prompt engineering
+* Add filtering and ranking mechanisms
+* Optimize using vector indexes (HNSW)
+
+---
+
+## Tech Stack
+
+* NestJS (Fastify)
+* TypeORM
+* PostgreSQL (Supabase)
+* pgvector
+* FastAPI
+* sentence-transformers
+
+---
+
+## Conclusion
+
+This project demonstrates a **production-style RAG pipeline**, focusing on:
+
+* Correct data flow
+* Proper vector search implementation
+* Strong understanding of retrieval mechanics
+
+The goal is not just to make the system work, but to ensure it works **correctly and efficiently**.

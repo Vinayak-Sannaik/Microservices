@@ -1,270 +1,300 @@
-# RAG System (Retrieval Augmented Generation) – From Scratch
+# RAG Question Answering System (End-to-End)
 
 ## Overview
 
-This project implements a **domain-specific RAG (Retrieval Augmented Generation) system** using:
+This project implements a **Retrieval Augmented Generation (RAG)** system from scratch using a modern backend stack.
 
-* NestJS (Backend API)
-* FastAPI (Python AI service)
-* PostgreSQL + pgvector (Vector database)
-* Sentence Transformers (Local embeddings)
+It allows users to:
 
-The system enables:
+* Store documents
+* Convert them into embeddings
+* Perform semantic search
+* Generate grounded answers using an LLM
 
-1. Storing documents
-2. Chunking content
-3. Generating embeddings
-4. Performing semantic search
-5. Retrieving relevant context
+The system is designed to **reduce hallucinations** by forcing the model to answer using retrieved context.
 
 ---
 
 ## Architecture
 
-```
-User Request
+```txt
+User Query
    ↓
-NestJS API
+NestJS API (Fastify)
    ↓
-Chunking Layer
+Embedding Service (Python - FastAPI)
    ↓
-Python AI Service (Embeddings)
+PostgreSQL + pgvector
    ↓
-PostgreSQL (pgvector)
+Similarity Search (Cosine)
    ↓
-Similarity Search
+Top-K Relevant Chunks
+   ↓
+Prompt Construction
+   ↓
+Gemini LLM
+   ↓
+Final Answer
 ```
 
 ---
 
-## What We Built Step-by-Step
+## Tech Stack
+
+### Backend
+
+* NestJS (Fastify)
+* TypeORM
+* PostgreSQL (Supabase)
+
+### AI / ML
+
+* sentence-transformers (`all-MiniLM-L6-v2`)
+* FastAPI (Python microservice for embeddings)
+* Gemini API (LLM)
+
+### Database
+
+* pgvector (vector similarity search)
+
+---
+
+## Core Features
 
 ### 1. Document Ingestion
 
-* Developed REST APIs to store documents
-* Stored raw content in PostgreSQL
+* REST API to store documents
+* Automatically splits content into chunks
 
 ---
 
-### 2. Chunking (Initial Mistake + Fix)
+### 2. Chunking Strategy
 
-#### ❌ Initial Approach:
+#### Initial Problem
 
-```ts
-text.slice(start, end)
-```
-
-**Problems:**
-
+* Used naive slicing (`text.slice`)
 * Broke sentences mid-way
-* Produced meaningless chunks
-* Resulted in poor embeddings → weak retrieval
+* Resulted in poor embeddings
 
-#### ✅ Fix:
+#### Final Approach
 
-* Switched to **sentence-based chunking**
-* Preserved semantic meaning
+* Sentence-based chunking
+* Chunk size ~150 chars
+* Preserves semantic meaning
 
 ---
 
 ### 3. Embeddings
 
-* Built a Python microservice using:
+* Generated using local model:
 
-  * `sentence-transformers`
-  * Model: `all-MiniLM-L6-v2`
-* Generated embeddings locally (completely free)
-
----
-
-### 4. Storing Embeddings
-
-* Used `pgvector` in PostgreSQL
-* Stored embeddings in a `vector` column
+  * `all-MiniLM-L6-v2`
+* Runs via Python FastAPI service
+* Fully free (no API cost)
 
 ---
 
-### 5. Similarity Search (Critical Learning)
+### 4. Vector Storage
 
-#### ❌ Initial Approach (Incorrect):
+* Stored in PostgreSQL using `pgvector`
+* Each chunk has:
+
+  * content
+  * embedding vector
+
+---
+
+### 5. Similarity Search (Critical Fix)
+
+#### Initial Mistake
 
 ```sql
 embedding <-> query_embedding
 ```
 
-This uses **Euclidean distance**
-
-**Problems:**
-
-* Poor semantic ranking
-* High distance values (~1.0+)
-* Weak similarity signals
+* Uses Euclidean distance
+* Produced poor ranking (~1.0+ distances)
 
 ---
 
-#### ✅ Fixed Approach (Correct):
+#### Final Solution
 
 ```sql
 embedding <=> query_embedding
 ```
 
-This uses **Cosine similarity**
-
----
-
-## Why Cosine Similarity?
-
-Embeddings represent **direction (semantic meaning)** rather than magnitude.
-
-### Euclidean Distance:
-
-* Measures raw distance
-* Sensitive to vector scale
-* Not suitable for semantic comparison
-
-### Cosine Similarity:
-
-* Measures angle between vectors
-* Captures semantic similarity
-* Standard approach in NLP systems
+* Uses Cosine similarity
+* Correct semantic comparison
 
 ---
 
 ## Results Comparison
 
-| Approach          | Distance Range | Quality |
-| ----------------- | -------------- | ------- |
-| Euclidean (`<->`) | ~1.0 – 1.3     | ❌ Poor  |
-| Cosine (`<=>`)    | ~0.2 – 0.4     | ✅ Good  |
+| Method    | Distance Range | Quality |
+| --------- | -------------- | ------- |
+| Euclidean | ~1.0 – 1.3     | ❌ Poor  |
+| Cosine    | ~0.2 – 0.5     | ✅ Good  |
 
 ---
 
-## 6. Chunk Size Optimization
+### 6. Retrieval Pipeline
 
-#### ❌ Initial:
-
-```
-chunk size = 500
+```txt
+Query → Embedding → Cosine Search → Top 3 Chunks
 ```
 
-**Problems:**
+Enhancements:
 
-* Too large
-* Low precision
-* Weak matching
-
-#### ✅ Fix:
-
-```
-chunk size = 150
-overlap = 30
-```
-
-**Result:**
-
-* Improved semantic matching
-* Better retrieval accuracy
+* Limit results to top 3
+* Filter weak matches (distance > 0.7)
+* Clean chunk content
 
 ---
 
-## Final Retrieval Flow
+### 7. LLM Integration (Gemini)
 
-```
-User Query
-   ↓
-Convert to Embedding
-   ↓
-Cosine Similarity Search (pgvector)
-   ↓
-Top-K Relevant Chunks
+* Uses Gemini API for answer generation
+* Strict prompt to prevent hallucination
+
+---
+
+## Prompt Strategy
+
+```txt
+You are a strict AI assistant.
+
+Answer ONLY using the context below.
+Do NOT add external knowledge.
+If the answer is not present, say "I don't know".
+
+Context:
+{retrieved_chunks}
+
+Question:
+{user_query}
+
+Answer:
 ```
 
 ---
 
-## Example Query
+## Example
 
-```
-"What is RAG?"
+### Query
+
+```json
+{ "query": "What is RAG?" }
 ```
 
-### Output:
+---
+
+### Retrieved Chunks
 
 ```json
 [
   {
     "content": "Retrieval Augmented Generation (RAG) is a method...",
-    "distance": 0.32
+    "distance": 0.55
+  },
+  {
+    "content": "RAG helps reduce hallucinations...",
+    "distance": 0.42
   }
 ]
 ```
 
 ---
 
+### Final Answer
+
+```json
+{
+  "answer": "Retrieval Augmented Generation (RAG) is a method used in artificial intelligence to improve the accuracy of language models. It helps reduce hallucinations by relying on real data instead of only the model’s internal knowledge."
+}
+```
+
+---
+
 ## Key Learnings
 
-### 1. Retrieval > LLM
+### 1. Retrieval is the Core
 
-```
+```txt
 RAG = 80% Retrieval + 20% Generation
 ```
 
 ---
 
-### 2. Chunking Quality is Critical
+### 2. Chunking Matters More Than You Think
 
-Bad chunking → bad embeddings → poor retrieval
+Bad chunking → bad embeddings → bad results
 
 ---
 
-### 3. Distance Metric Matters
+### 3. Distance Metric is Critical
 
-Using the wrong metric leads to incorrect results
+* Euclidean distance is incorrect for embeddings
+* Cosine similarity is required
 
 ---
 
 ### 4. Data Quality > Model Choice
 
-Better content → stronger embeddings → improved results
+Better content → better retrieval → better answers
 
 ---
 
-### 5. ORMs Don’t Handle Everything
+### 5. Ranking is Imperfect
 
-* `pgvector` required manual handling
-* Raw SQL queries were necessary
+Vector similarity:
+
+* Finds relevant chunks ✔
+* Does NOT fully understand intent ❌
+
+Fixes:
+
+* Better chunk design
+* Light re-ranking
+
+---
+
+### 6. Prompt Controls Hallucination
+
+Weak prompt → LLM ignores context
+Strict prompt → grounded answers
 
 ---
 
 ## Current Status
 
-```
+```txt
 ✔ Document ingestion
 ✔ Chunking (sentence-based)
-✔ Embeddings (local)
-✔ Vector storage (pgvector)
+✔ Embeddings (local, free)
+✔ Vector DB (pgvector)
 ✔ Similarity search (cosine)
-❌ Answer generation (next step)
+✔ LLM integration (Gemini)
+✔ Grounded answers
 ```
 
 ---
 
-## Next Steps
+## Limitations
 
-* Integrate an LLM for answer generation
-* Improve prompt engineering
-* Add filtering and ranking mechanisms
-* Optimize using vector indexes (HNSW)
+* Small dataset → limited retrieval quality
+* No advanced re-ranking
+* No hybrid search (keyword + vector)
+* No frontend UI yet
 
 ---
 
-## Tech Stack
+## Future Improvements
 
-* NestJS (Fastify)
-* TypeORM
-* PostgreSQL (Supabase)
-* pgvector
-* FastAPI
-* sentence-transformers
+* Add React UI (chat interface)
+* Add citations (which chunk was used)
+* Implement hybrid search (BM25 + vector)
+* Add re-ranking model (cross-encoder)
+* Add caching layer (Redis)
 
 ---
 
@@ -272,8 +302,20 @@ Better content → stronger embeddings → improved results
 
 This project demonstrates a **production-style RAG pipeline**, focusing on:
 
-* Correct data flow
-* Proper vector search implementation
-* Strong understanding of retrieval mechanics
+* Correct architecture
+* Proper vector search
+* Grounded LLM responses
 
-The goal is not just to make the system work, but to ensure it works **correctly and efficiently**.
+Not just making it work — but making it **correct and explainable**.
+
+---
+
+## Author Notes
+
+This system was built iteratively by:
+
+* identifying incorrect assumptions
+* debugging real-world issues
+* improving retrieval quality step by step
+
+It reflects how real RAG systems are developed in practice.

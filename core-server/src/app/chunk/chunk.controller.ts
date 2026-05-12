@@ -1,10 +1,15 @@
 import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
 import { ChunkService } from './chunk.service';
 import { CreateChunkDto } from './dto/create-chunk.dto';
+import { aiAssistant } from '../../common/prompts/ai-assistant';
+import { LlmService } from '../llm/llm.service';
 
 @Controller('chunks')
 export class ChunkController {
-  constructor(private readonly chunkService: ChunkService) {}
+  constructor(
+    private readonly chunkService: ChunkService,
+    private readonly llmService: LlmService,
+  ) {}
 
   @Post()
   create(@Body() createChunkDto: CreateChunkDto) {
@@ -23,8 +28,21 @@ export class ChunkController {
 
   @Post('search')
   async search(@Body() body: { query: string }) {
-    console.log('Received search query:', body.query);
+    // console.log('Received search query:', body.query);
     return this.chunkService.searchSimilar(body.query);
+  }
+
+  @Post('ask')
+  async ask(@Body() body: { query: string }) {
+    const chunks = await this.chunkService.searchSimilar(body.query);
+    // const v = await this.llmService.listModels();
+    const context = chunks.map((c) => c.content).join('\n');
+    const prompt = aiAssistant(context, body.query);
+    const answer: string = await this.llmService.generateAnswer(prompt);
+    return {
+      answer,
+      chunks,
+    };
   }
 
   // @Patch(':id')

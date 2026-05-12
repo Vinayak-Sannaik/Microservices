@@ -8,6 +8,7 @@ import { DocumentModule } from './document/document.module';
 import { ChunkModule } from './chunk/chunk.module';
 import { EmbeddingService } from './embedding/embedding.service';
 import { EmbeddingModule } from './embedding/embedding.module';
+import { LlmService } from './llm/llm.service';
 
 @Module({
   imports: [
@@ -41,7 +42,7 @@ import { EmbeddingModule } from './embedding/embedding.module';
     EmbeddingModule,
   ],
   controllers: [AppController],
-  providers: [AppService, EmbeddingService],
+  providers: [AppService, EmbeddingService, LlmService],
 })
 export class AppModule {
   constructor(private dataSource: DataSource) {
