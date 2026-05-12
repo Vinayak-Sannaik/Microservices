@@ -38,10 +38,7 @@ export class ChunkService {
     return `This action removes a #${id} chunk`;
   }
 
-  async searchSimilar(
-    query: string,
-    limit: number = 5,
-  ): Promise<ChunkResult[]> {
+  async searchSimilar(query: string, limit: number = 5): Promise<any[]> {
     // Normalize query: lowercase and trim
     const normalizedQuery = query.toLowerCase().trim();
     const embedding: number[] =
@@ -49,16 +46,28 @@ export class ChunkService {
 
     const vector = toVectorString(embedding);
 
-    const results: ChunkResult[] = await this.chunkRepository.query(
-      `
-        SELECT content, embedding <=> $1 AS distance
-        FROM chunk
-        WHERE embedding IS NOT NULL
-        ORDER BY embedding <=> $1
-        LIMIT $2
+    const results: any[] = await this.chunkRepository.query(
+      `   
+          SELECT 
+          content,
+          embedding <=> $1 AS vector_distance,
+          ts_rank(tsv, plainto_tsquery($2)) AS keyword_score
+          FROM chunk
       `,
-      [vector, limit],
+      [vector, query],
     );
-    return results.filter((r) => r.distance < 0.7);
+
+    // normalize + combine
+    const hybrid = results.map((r) => {
+      const vectorScore = 1 - r.vector_distance; // convert distance → similarity
+      const keywordScore = r.keyword_score;
+
+      return {
+        content: r.content,
+        score: 0.7 * vectorScore + 0.3 * keywordScore,
+      };
+    });
+
+    return hybrid.sort((a, b) => b.score - a.score).slice(0, 3);
   }
 }

@@ -19,6 +19,19 @@ The system enables:
 
 ---
 
+Start Project:
+nest start --watch backend API.
+uvicorn main:app --reload --port 8000 ai-service API.
+npm run dev web
+
+Migration Generate new file:
+npm run typeorm -- migration:generate src/migrations/AddTsvColumn -d src/data-source.ts
+
+RUN Migration:
+npm run typeorm -- migration:run -d src/data-source.ts
+
+
+
 ## Architecture
 
 ```

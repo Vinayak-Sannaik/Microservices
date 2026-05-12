@@ -12,6 +12,9 @@ export class Chunk {
   @Column()
   order!: number;
 
+  @Column()
+  tsv!: string;
+
   @Column({
     type: 'vector',
     nullable: true,
