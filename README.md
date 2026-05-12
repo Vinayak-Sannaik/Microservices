@@ -1,4 +1,4 @@
-# RAG Question Answering System (End-to-End)
+# RAG Question Answering System
 
 ## Overview
 
