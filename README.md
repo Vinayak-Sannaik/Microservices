@@ -12,7 +12,8 @@ It allows users to:
 * Generate grounded answers using an LLM
 
 The system is designed to **reduce hallucinations** by forcing the model to answer using retrieved context.
-
+<img width="1726" height="1042" alt="image" src="https://github.com/user-attachments/assets/96187f44-7aa3-4a91-bb40-bc178bac0016" />
+<img width="1385" height="677" alt="image" src="https://github.com/user-attachments/assets/270d518b-e48e-4967-9f0b-a0ae7a20d8b7" />
 ---
 
 ## Architecture
