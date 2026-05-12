@@ -64,10 +64,10 @@ export class ChunkService {
 
       return {
         content: r.content,
-        score: 0.7 * vectorScore + 0.3 * keywordScore,
+        distance: 0.7 * vectorScore + 0.3 * keywordScore,
       };
     });
 
-    return hybrid.sort((a, b) => b.score - a.score).slice(0, 3);
+    return hybrid.sort((a, b) => b.distance - a.distance).slice(0, 3);
   }
 }

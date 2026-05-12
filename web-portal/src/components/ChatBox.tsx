@@ -32,7 +32,7 @@ export default function ChatBox() {
         style={{ width: '60%', padding: 10 }}
       />
 
-      <button onClick={handleAsk} style={{ marginLeft: 10 }}>
+      <button disabled = { loading || !query} onClick={handleAsk} style={{ marginLeft: 10 }}>
         Ask
       </button>
 
@@ -50,8 +50,10 @@ export default function ChatBox() {
           <h4>Retrieved Chunks</h4>
           {chunks.map((c, i) => (
             <div key={i} style={{ marginBottom: 10 }}>
-              <p>{c.content}</p>
-              <small>Distance: {c.distance}</small>
+              <li>
+                <ul>{c.content}</ul>
+              </li>
+              {/* <small>Distance: {c.distance}</small> */}
             </div>
           ))}
         </div>
